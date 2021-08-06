@@ -36,9 +36,9 @@ THE SOFTWARE.
 #include "dm_nohost.h"
 
 #ifndef BPS
-#define BPS 64
-#define _PPB 256
-#define PAGESIZE 8129
+#define BPS 64 // Blocks Per Segment (may be software defined)
+#define _PPB 128 // Pages Per Block
+#define PAGESIZE 8192 // Page Size (bytes)
 #endif
 //#include "../../../../bench/bench.h"
 
