@@ -668,8 +668,8 @@ uint32_t dm_nohost_make_req (
 		case REQTYPE_GC_WRITE:
 			bus  = r->logaddr.lpa[0] & 0x7;
 			chip = (r->logaddr.lpa[0] >> 3) & 0x7;
-			page = (r->logaddr.lpa[0] >> 6) & 0xFF;
-			block = (r->logaddr.lpa[0] >> 14);
+			page = (r->logaddr.lpa[0] >> 6) & 0xEF;
+			block = (r->logaddr.lpa[0] >> 13);
 			device->writePage(bus, chip, block, page, r->tag, r->dmaTag * FPAGE_SIZE);
 			//pthread_mutex_unlock(&endR);
 			//
@@ -682,8 +682,8 @@ uint32_t dm_nohost_make_req (
 
 			bus  = r->logaddr.lpa[0] & 0x7;
 			chip = (r->logaddr.lpa[0] >> 3) & 0x7;
-			page = (r->logaddr.lpa[0] >> 6) & 0xFF;
-			block = (r->logaddr.lpa[0] >> 14);
+			page = (r->logaddr.lpa[0] >> 6) & 0xEF;
+			block = (r->logaddr.lpa[0] >> 13);
 			device->writePage(bus, chip, block, page, r->tag, r->dmaTag * FPAGE_SIZE);
 			//printf ("WRITE-LOG: %c %c\n", r->fmain.kp_ptr[0][0], r->fmain.kp_ptr[0][8191]); fflush(stdout);
 			break;
@@ -697,8 +697,8 @@ uint32_t dm_nohost_make_req (
 
 			bus  = r->logaddr.lpa[0] & 0x7;
 			chip = (r->logaddr.lpa[0] >> 3) & 0x7;
-			page = (r->logaddr.lpa[0] >> 6) & 0xFF;
-			block = (r->logaddr.lpa[0] >> 14);
+			page = (r->logaddr.lpa[0] >> 6) & 0xEF;
+			block = (r->logaddr.lpa[0] >> 13);
 			device->readPage(bus, chip, block, page, r->tag, r->dmaTag * FPAGE_SIZE);
 			break;
 
@@ -708,8 +708,8 @@ uint32_t dm_nohost_make_req (
 
 			bus  = r->logaddr.lpa[0] & 0x7;
 			chip = (r->logaddr.lpa[0] >> 3) & 0x7;
-			page = (r->logaddr.lpa[0] >> 6) & 0xFF;
-			block = (r->logaddr.lpa[0] >> 14);
+			page = (r->logaddr.lpa[0] >> 6) & 0xEF;
+			block = (r->logaddr.lpa[0] >> 13);
 			device->readPage(bus, chip, block, page, r->tag, r->dmaTag * FPAGE_SIZE);
 			break;
 
@@ -718,8 +718,8 @@ uint32_t dm_nohost_make_req (
 			//device->eraseBlock (r->tag, r->logaddr.lpa[0]);
 			bus  = r->logaddr.lpa[0] & 0x7;
 			chip = (r->logaddr.lpa[0] >> 3) & 0x7;
-			//page = (r->logaddr.lpa[0] >> 6) & 0xFF;
-			block = (r->logaddr.lpa[0] >> 14);
+			//page = (r->logaddr.lpa[0] >> 6) & 0xEF;
+			block = (r->logaddr.lpa[0] >> 13);
 			device->eraseBlock(bus, chip, block, r->tag);
 			break;
 		default:
