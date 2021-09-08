@@ -4,7 +4,7 @@
 #include "umemory.h" /* bdbm_malloc */
 #include "uthread.h" /* bdbm_thread_nanosleep */
 #include <queue>
-enum _dma_type { DMA_READ_BUF, DMA_WRITE_BUF };
+enum _dma_type { DMA_WRITE_BUF = 1, DMA_READ_BUF };
 typedef struct memio_q_req {
   void *req;
   int type;

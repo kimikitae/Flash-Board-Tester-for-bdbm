@@ -278,7 +278,6 @@ void memio_wait(memio_t *mio) {
     bdbm_mutex_lock(&mio->tagQMutex);
     i = mio->tagQ->size();
     bdbm_mutex_unlock(&mio->tagQMutex);
-    printf("i:%d\n", i);
   } while (i != mio->nr_tags - 1);
 }
 /*for lsmtree hw accer logic*/
@@ -474,14 +473,13 @@ int memio_alloc_dma(int type, char **buf) {
   dmaTag = alloc_dmaQ_tag(type);
   byteOffset = dmaTag * 8192;
   switch (type) {
-  case 0:
+  case 1: // write buffer
     *buf = (char *)(srcBuffer + byteOffset / sizeof(unsigned int));
     break;
-  case 1:
+  case 2: // read buffer
     *buf = (char *)(dstBuffer + byteOffset / sizeof(unsigned int));
     break;
   }
-  //	printf("buf pointer : %p\n", *buf);
   return dmaTag;
 }
 

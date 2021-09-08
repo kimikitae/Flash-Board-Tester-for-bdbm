@@ -22,10 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <unistd.h>
 
 #include "libmemio.h"
@@ -38,24 +38,21 @@ typedef struct dma_info {
 
 memio_t *mio;
 void end_req(async_bdbm_req *req) {
-  dma_info *temp_dma = (dma_info *)req->private_data;
+  dma_info *dma = (dma_info *)req->private_data;
   switch (req->type) {
   case REQTYPE_IO_READ:
+    printf("read --> 0x%x\n", *(int *)dma->data);
     /*do something after read req*/
-
-    /*reclaim dma*/
-    memio_free_dma(DMA_READ_BUF, temp_dma->tag);
+    memio_free_dma(DMA_READ_BUF, dma->tag);
     break;
   case REQTYPE_IO_WRITE:
     /*do something after write req*/
-
-    /*reclaim dma*/
-    memio_free_dma(DMA_WRITE_BUF, temp_dma->tag);
+    memio_free_dma(DMA_WRITE_BUF, dma->tag);
     break;
   default:
     break;
   }
-  free(temp_dma);
+  free(dma);
   free(req);
 }
 
@@ -64,44 +61,68 @@ void erase_end_req(uint64_t seg_num, uint8_t isbad) {
    * some bad blocks*/
 }
 
+struct address {
+  union {
+    struct {
+      uint32_t bus : 3;
+      uint32_t chip : 3;
+      uint32_t page : 7;
+      uint32_t block : 19;
+    } format;
+    uint32_t lpn;
+  };
+};
+
 int main(int argc, char **argv) {
   if ((mio = memio_open()) == NULL) {
     printf("could not open memio\n");
     return -1;
   }
 
-  char temp[8192] = {
-      0,
-  };
-  /*allocation write dma*/
-  dma_info *dma = (dma_info *)malloc(sizeof(dma_info));
-  dma->tag = memio_alloc_dma(DMA_WRITE_BUF, &dma->data);
-  memcpy(dma->data, temp, 8192);
+  struct address addr;
+  addr.lpn = 0;
+  char temp[8192] = {0};
+  for (addr.format.block = 0; addr.format.block < 5; addr.format.block += 1) {
+    for (addr.format.page = 0; addr.format.page < (1 << 7);
+         addr.format.page++) {
+      memset(temp, 0, sizeof(temp));
+      printf("current address: 0x%x\n", addr.lpn);
+      *(int *)temp = addr.lpn;
+      // memio_wait(mio);
+      /*allocation write dma*/
+      dma_info *dma = (dma_info *)malloc(sizeof(dma_info));
+      dma->tag = memio_alloc_dma(DMA_WRITE_BUF, &dma->data);
+      memcpy(dma->data, temp, 8192);
 
-  async_bdbm_req *temp_req = (async_bdbm_req *)malloc(sizeof(async_bdbm_req));
-  temp_req->type = REQTYPE_IO_WRITE;
-  temp_req->private_data = (void *)dma;
-  temp_req->end_req = end_req; // when the requset ends, the "end_req" is called
+      async_bdbm_req *temp_req =
+          (async_bdbm_req *)malloc(sizeof(async_bdbm_req));
+      temp_req->type = REQTYPE_IO_WRITE;
+      temp_req->private_data = (void *)dma;
+      temp_req->end_req =
+          end_req; // when the requset ends, the "end_req" is called
 
-  memio_write(mio, 0, 8192, (uint8_t *)dma->data, true, (void *)temp_req,
-              dma->tag);
+      memio_write(mio, addr.lpn, 8192, (uint8_t *)dma->data, false,
+                  (void *)temp_req, dma->tag);
 
-  /*allocation read dma*/
-  dma = (dma_info *)malloc(sizeof(dma_info));
-  dma->tag = memio_alloc_dma(DMA_READ_BUF, &dma->data);
+      /*allocation read dma*/
+      dma = (dma_info *)malloc(sizeof(dma_info));
+      dma->tag = memio_alloc_dma(DMA_READ_BUF, &dma->data);
 
-  temp_req = (async_bdbm_req *)malloc(sizeof(async_bdbm_req));
-  temp_req->type = REQTYPE_IO_READ;
-  temp_req->end_req = end_req;
-  temp_req->private_data = (void *)dma;
-  memio_read(mio, 0, 8192, (uint8_t *)dma->data, true, (void *)temp_req,
-             dma->tag);
-
-  /*trim for badblock checking*/
-  memio_trim(mio, 0, 16384 * 8192, erase_end_req);
-
-  /*trim for erase data*/
-  memio_trim(mio, 0, 16384 * 8192, NULL);
+      temp_req = (async_bdbm_req *)malloc(sizeof(async_bdbm_req));
+      temp_req->type = REQTYPE_IO_READ;
+      temp_req->end_req = end_req;
+      temp_req->private_data = (void *)dma;
+      memio_read(mio, addr.lpn, 8192, (uint8_t *)dma->data, false,
+                 (void *)temp_req, dma->tag);
+    }
+    addr.format.page = 0;
+    /*trim for erase data*/
+    memio_trim(mio, addr.lpn, 16384 * 8192, NULL);
+  }
+#if 0
+    /* trim for badblock checking */
+    memio_trim(mio, 0, 16384*8192, erase_end_req);
+#endif
 
   memio_close(mio);
   return 0;

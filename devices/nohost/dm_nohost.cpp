@@ -666,6 +666,8 @@ uint32_t dm_nohost_make_req (
 		case REQTYPE_WRITE:
 		case REQTYPE_RMW_WRITE:
 		case REQTYPE_GC_WRITE:
+			// printf ("LOG: device->writePage, tag=%d lpa=%x\n", r->dmaTag, r->logaddr.lpa[0]); fflush(stdout);
+			// printf ("WRITE-LOG: %d %d\n", (int)r->fmain.kp_ptr[0][0], (int)r->fmain.kp_ptr[0][8191]); fflush(stdout);
 			bus  = r->logaddr.lpa[0] & 0x7;
 			chip = (r->logaddr.lpa[0] >> 3) & 0x7;
 			page = (r->logaddr.lpa[0] >> 6) & 0x7F;
@@ -692,7 +694,7 @@ uint32_t dm_nohost_make_req (
 		case REQTYPE_READ_DUMMY:
 		case REQTYPE_RMW_READ:
 		case REQTYPE_GC_READ:
-			//printf ("LOG: device->readPage, tag=%d lpa=%d\n", r->tag, r->logaddr.lpa[0]); fflush(stdout);
+			// printf ("LOG: device->readPage, tag=%d lpa=%x\n", r->dmaTag, r->logaddr.lpa[0]); fflush(stdout);
 			//device->readPage (r->tag, r->logaddr.lpa[0], r->dmaTag * FPAGE_SIZE);
 
 			bus  = r->logaddr.lpa[0] & 0x7;

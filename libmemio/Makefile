@@ -21,24 +21,21 @@ INCLUDE = $(ROOTDIR)/include
 COMMON = $(ROOTDIR)/common
 DM_COMMON = $(ROOTDIR)/devices/common
 DM_NOHOST = $(ROOTDIR)/devices/nohost
-BOARDDIR = $(BOARD)/jni_4.0
+BOARDDIR = $(BOARD)/jni
 
 CFLAGS += \
 	-g \
 	-Wall -Wsign-compare -Wwrite-strings \
 	-D_LARGEFILE64_SOURCE \
 	-D_GNU_SOURCE  \
-	-D HASH_BLOOM=20 \
 	-D CONFIG_ENABLE_MSG \
 	-D CONFIG_ENABLE_DEBUG \
-	-D CONFIG_DEVICE_TYPE_USER_RAMDRIVE \
 	-D USER_MODE \
 	-D USE_PMU \
 	-D USE_KTIMER \
 	-D USE_NEW_RMW \
 	-D NOHOST \
 	-D LIBLSM \
-	-D JNI=4\
 	-std=c++11 \
 	#-D USE_ACP \ # only valid for zc706. mkTop8k_ACP.exe should be used.
 	#-D ZYNQ=1 \ # Already defined in ConnectalProjectConfig.h:20 
