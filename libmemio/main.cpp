@@ -28,20 +28,131 @@ THE SOFTWARE.
 #include <ctime>
 #include <unistd.h>
 
+#include <set>
+
 #include "libmemio.h"
 
+/**
+ * NAND Specification
+ * - # of Channels: 4
+ * - # of Ways: 8
+ * - # of Blocks: 32768 (PAGE_SIZE(# of Blocks in a Chip(x2 Ways)) * 4 (# of
+ * Channel))
+ * - # of Pages(per Block): 128
+ * - Page Size: 8k
+ * - Capacity per NAND: PAGE_SIZE * 128 * 32768 bytes (around 32GB)
+ *
+ * Total Flash Size
+ * - # of NAND: 16
+ * - Total Capacity: 512GB
+ */
+
+// DEVICE INFORMATION
+#define MAX_BUS (4)
+#define MAX_CHIPS_PER_BUS (2)
+#define MAX_BLOCKS_PER_CHIP (4096)
+#define MAX_PAGES_PER_BLOCK (128)
+
+#define NUMBER_OF_BLOCKS (MAX_BUS * MAX_CHIPS_PER_BUS * MAX_BLOCKS_PER_CHIP)
+
+#define PAGE_SIZE (8192)         // bytes
+#define PAGE_PER_SEGMENT (16384) // 1 way (4096) ==> 4 channels ==> 16384
+
+// temporary buffer
+char buffer[PAGE_SIZE];
+
+// bad block set container
+std::set<uint64_t> invalid_segments;
+
+// dma information
 typedef struct dma_info {
   uint32_t tag;
   uint32_t dma_type;
   char *data;
 } dma_info;
 
-memio_t *mio;
+// generic address format
+struct address {
+  union {
+    struct {
+      uint32_t bus : 3;
+      uint32_t chip : 3;
+      uint32_t page : 7;
+      uint32_t block : 19;
+    } format;
+    uint32_t lpn;
+  };
+};
+
+// end request
+void end_req(async_bdbm_req *req);
+void erase_end_req(uint64_t seg_num, uint8_t isbad);
+
+// read/write test function
+void write(memio_t *mio, uint32_t lpn);
+void read(memio_t *mio, uint32_t lpn);
+
+int main(int argc, char **argv) {
+  memio_t *mio;
+  if ((mio = memio_open()) == NULL) {
+    printf("could not open memio\n");
+    return -1;
+  }
+
+  // trim for badblock checking
+  struct address addr;
+  for (int i = 0; i < NUMBER_OF_BLOCKS; i += 2) {
+    addr.lpn = 0;
+    addr.format.block = i;
+    memio_trim(mio, addr.lpn, PAGE_PER_SEGMENT * PAGE_SIZE, erase_end_req);
+  }
+  memio_wait(mio);
+
+  // R/W tester
+  addr.lpn = 0;
+  printf("%-6s%-16s%-6s%-6s%-6s%-6s\n", "type", "lpn", "bus", "chip", "block",
+         "page");
+  uint32_t bus, chip, block, page;
+  for (bus = 0; bus < MAX_BUS; bus++) {
+    for (chip = 0; chip < MAX_CHIPS_PER_BUS; chip++) {
+      for (block = 0; block < MAX_BLOCKS_PER_CHIP; block += 2) {
+        if (invalid_segments.find(block) == invalid_segments.end()) {
+          continue;
+        }
+        for (page = 0; page < MAX_PAGES_PER_BLOCK; page++) {
+          addr.format.bus = bus;
+          addr.format.chip = chip;
+          addr.format.page = page;
+          addr.format.block = block;
+          printf("%-6s%-016d%-6d%-6d%-6d%-6d\n", "write", addr.lpn,
+                 addr.format.bus, addr.format.chip, addr.format.block,
+                 addr.format.page);
+          write(mio, addr.lpn);
+          read(mio, addr.lpn);
+        }
+      }
+    }
+  }
+
+  // remove whole
+  for (int i = 0; i < NUMBER_OF_BLOCKS; i += 2) {
+    addr.lpn = 0;
+    addr.format.block = i;
+    memio_trim(mio, addr.lpn, PAGE_PER_SEGMENT * PAGE_SIZE, NULL);
+  }
+  memio_close(mio);
+
+  return 0;
+}
+
 void end_req(async_bdbm_req *req) {
   dma_info *dma = (dma_info *)req->private_data;
   switch (req->type) {
   case REQTYPE_IO_READ:
-    printf("read --> 0x%x\n", *(int *)dma->data);
+    struct address addr;
+    addr.lpn = *(uint32_t *)dma->data;
+    printf("%-6s%-016x%-6x%-6x%-6x%-6x\n", "read", addr.lpn, addr.format.bus,
+           addr.format.chip, addr.format.block, addr.format.page);
     /*do something after read req*/
     memio_free_dma(DMA_READ_BUF, dma->tag);
     break;
@@ -59,71 +170,37 @@ void end_req(async_bdbm_req *req) {
 void erase_end_req(uint64_t seg_num, uint8_t isbad) {
   /*managing block mapping when "isbad" set to 1 which mean the segments has
    * some bad blocks*/
+  if (isbad) {
+    invalid_segments.insert(seg_num);
+  }
 }
 
-struct address {
-  union {
-    struct {
-      uint32_t bus : 3;
-      uint32_t chip : 3;
-      uint32_t page : 7;
-      uint32_t block : 19;
-    } format;
-    uint32_t lpn;
-  };
-};
+void write(memio_t *mio, uint32_t lpn) {
+  memset(buffer, 0, sizeof(buffer));
+  *(int *)buffer = lpn;
+  /*allocation write dma*/
+  dma_info *dma = (dma_info *)malloc(sizeof(dma_info));
+  dma->tag = memio_alloc_dma(DMA_WRITE_BUF, &dma->data);
+  memcpy(dma->data, buffer, PAGE_SIZE);
 
-int main(int argc, char **argv) {
-  if ((mio = memio_open()) == NULL) {
-    printf("could not open memio\n");
-    return -1;
-  }
+  async_bdbm_req *req = (async_bdbm_req *)malloc(sizeof(async_bdbm_req));
+  req->type = REQTYPE_IO_WRITE;
+  req->private_data = (void *)dma;
+  req->end_req = end_req; // when the requset ends, the "end_req" is called
 
-  struct address addr;
-  addr.lpn = 0;
-  char temp[8192] = {0};
-  for (addr.format.block = 0; addr.format.block < 5; addr.format.block += 1) {
-    for (addr.format.page = 0; addr.format.page < (1 << 7);
-         addr.format.page++) {
-      memset(temp, 0, sizeof(temp));
-      printf("current address: 0x%x\n", addr.lpn);
-      *(int *)temp = addr.lpn;
-      // memio_wait(mio);
-      /*allocation write dma*/
-      dma_info *dma = (dma_info *)malloc(sizeof(dma_info));
-      dma->tag = memio_alloc_dma(DMA_WRITE_BUF, &dma->data);
-      memcpy(dma->data, temp, 8192);
+  memio_write(mio, lpn, PAGE_SIZE, (uint8_t *)dma->data, false, (void *)req,
+              dma->tag);
+}
 
-      async_bdbm_req *temp_req =
-          (async_bdbm_req *)malloc(sizeof(async_bdbm_req));
-      temp_req->type = REQTYPE_IO_WRITE;
-      temp_req->private_data = (void *)dma;
-      temp_req->end_req =
-          end_req; // when the requset ends, the "end_req" is called
+void read(memio_t *mio, uint32_t lpn) {
+  /*allocation read dma*/
+  dma_info *dma = (dma_info *)malloc(sizeof(dma_info));
+  dma->tag = memio_alloc_dma(DMA_READ_BUF, &dma->data);
 
-      memio_write(mio, addr.lpn, 8192, (uint8_t *)dma->data, false,
-                  (void *)temp_req, dma->tag);
-
-      /*allocation read dma*/
-      dma = (dma_info *)malloc(sizeof(dma_info));
-      dma->tag = memio_alloc_dma(DMA_READ_BUF, &dma->data);
-
-      temp_req = (async_bdbm_req *)malloc(sizeof(async_bdbm_req));
-      temp_req->type = REQTYPE_IO_READ;
-      temp_req->end_req = end_req;
-      temp_req->private_data = (void *)dma;
-      memio_read(mio, addr.lpn, 8192, (uint8_t *)dma->data, false,
-                 (void *)temp_req, dma->tag);
-    }
-    addr.format.page = 0;
-    /*trim for erase data*/
-    memio_trim(mio, addr.lpn, 16384 * 8192, NULL);
-  }
-#if 0
-    /* trim for badblock checking */
-    memio_trim(mio, 0, 16384*8192, erase_end_req);
-#endif
-
-  memio_close(mio);
-  return 0;
+  async_bdbm_req *req = (async_bdbm_req *)malloc(sizeof(async_bdbm_req));
+  req->type = REQTYPE_IO_READ;
+  req->end_req = end_req;
+  req->private_data = (void *)dma;
+  memio_read(mio, lpn, PAGE_SIZE, (uint8_t *)dma->data, false, (void *)req,
+             dma->tag);
 }

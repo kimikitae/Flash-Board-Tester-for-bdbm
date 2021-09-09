@@ -31,6 +31,9 @@
 *.out
 *.app
 
+# Log File
+*.log
+
 # Tagging Information
 cscope.out
 tags
