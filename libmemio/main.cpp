@@ -48,6 +48,7 @@ THE SOFTWARE.
  */
 
 // DEVICE INFORMATION
+#ifdef DEFAULT
 #define MAX_BUS (4)
 #define MAX_CHIPS_PER_BUS (2)
 #define MAX_BLOCKS_PER_CHIP (4096)
@@ -92,6 +93,20 @@ void erase_end_req(uint64_t seg_num, uint8_t isbad);
 void write(memio_t *mio, uint32_t lpn);
 void read(memio_t *mio, uint32_t lpn);
 
+void print_progress(int i, int total) {
+  if (i * 100 == (total - 1) * 10) {
+    printf("10%% progressed\n");
+  } else if (i * 100 == (total - 1) * 25) {
+    printf("25%% progressed\n");
+  } else if (i * 100 == (total - 1) * 50) {
+    printf("50%% progressed\n");
+  } else if (i * 100 == (total - 1) * 75) {
+    printf("75%% progressed\n");
+  } else if (i * 100 == (total - 1) * 100) {
+    printf("100%% progressed\n");
+  }
+}
+
 int main(int argc, char **argv) {
   memio_t *mio;
   if ((mio = memio_open()) == NULL) {
@@ -105,6 +120,7 @@ int main(int argc, char **argv) {
     addr.lpn = 0;
     addr.format.block = i;
     memio_trim(mio, addr.lpn, PAGE_PER_SEGMENT * PAGE_SIZE, erase_end_req);
+    print_progress(i / 2, NUMBER_OF_BLOCKS / 2);
   }
   memio_wait(mio);
 
@@ -116,7 +132,7 @@ int main(int argc, char **argv) {
   for (bus = 0; bus < MAX_BUS; bus++) {
     for (chip = 0; chip < MAX_CHIPS_PER_BUS; chip++) {
       for (block = 0; block < MAX_BLOCKS_PER_CHIP; block += 2) {
-        if (invalid_segments.find(block) == invalid_segments.end()) {
+        if (invalid_segments.find(block) != invalid_segments.end()) {
           continue;
         }
         for (page = 0; page < MAX_PAGES_PER_BLOCK; page++) {
@@ -139,6 +155,7 @@ int main(int argc, char **argv) {
     addr.lpn = 0;
     addr.format.block = i;
     memio_trim(mio, addr.lpn, PAGE_PER_SEGMENT * PAGE_SIZE, NULL);
+    print_progress(i / 2, NUMBER_OF_BLOCKS / 2);
   }
   memio_close(mio);
 
@@ -151,7 +168,7 @@ void end_req(async_bdbm_req *req) {
   case REQTYPE_IO_READ:
     struct address addr;
     addr.lpn = *(uint32_t *)dma->data;
-    printf("%-6s%-016x%-6x%-6x%-6x%-6x\n", "read", addr.lpn, addr.format.bus,
+    printf("%-6s%-016d%-6d%-6d%-6d%-6d\n", "read", addr.lpn, addr.format.bus,
            addr.format.chip, addr.format.block, addr.format.page);
     /*do something after read req*/
     memio_free_dma(DMA_READ_BUF, dma->tag);
