@@ -48,7 +48,6 @@ THE SOFTWARE.
  */
 
 // DEVICE INFORMATION
-#ifdef DEFAULT
 #define MAX_BUS (4)
 #define MAX_CHIPS_PER_BUS (2)
 #define MAX_BLOCKS_PER_CHIP (4096)
@@ -56,8 +55,8 @@ THE SOFTWARE.
 
 #define NUMBER_OF_BLOCKS (MAX_BUS * MAX_CHIPS_PER_BUS * MAX_BLOCKS_PER_CHIP)
 
-#define PAGE_SIZE (8192)         // bytes
-#define PAGE_PER_SEGMENT (16384) // 1 way (4096) ==> 4 channels ==> 16384
+#define PAGE_SIZE (8192)           // bytes
+#define PAGE_PER_SEGMENT (1 << 13) // Based on the address format
 
 // temporary buffer
 char buffer[PAGE_SIZE];
@@ -116,11 +115,11 @@ int main(int argc, char **argv) {
 
   // trim for badblock checking
   struct address addr;
-  for (int i = 0; i < NUMBER_OF_BLOCKS; i += 2) {
+  for (int i = 0; i < NUMBER_OF_BLOCKS; i++) {
     addr.lpn = 0;
     addr.format.block = i;
     memio_trim(mio, addr.lpn, PAGE_PER_SEGMENT * PAGE_SIZE, erase_end_req);
-    print_progress(i / 2, NUMBER_OF_BLOCKS / 2);
+    print_progress(i, NUMBER_OF_BLOCKS);
   }
   memio_wait(mio);
 
@@ -131,15 +130,16 @@ int main(int argc, char **argv) {
   uint32_t bus, chip, block, page;
   for (bus = 0; bus < MAX_BUS; bus++) {
     for (chip = 0; chip < MAX_CHIPS_PER_BUS; chip++) {
-      for (block = 0; block < MAX_BLOCKS_PER_CHIP; block += 2) {
-        if (invalid_segments.find(block) != invalid_segments.end()) {
-          continue;
-        }
+      for (block = 0; block < MAX_BLOCKS_PER_CHIP; block++) {
         for (page = 0; page < MAX_PAGES_PER_BLOCK; page++) {
           addr.format.bus = bus;
           addr.format.chip = chip;
           addr.format.page = page;
           addr.format.block = block;
+          if (invalid_segments.find(addr.lpn / (PAGE_PER_SEGMENT)) !=
+              invalid_segments.end()) {
+            continue;
+          }
           printf("%-6s%-016d%-6d%-6d%-6d%-6d\n", "write", addr.lpn,
                  addr.format.bus, addr.format.chip, addr.format.block,
                  addr.format.page);
@@ -151,11 +151,11 @@ int main(int argc, char **argv) {
   }
 
   // remove whole
-  for (int i = 0; i < NUMBER_OF_BLOCKS; i += 2) {
+  for (int i = 0; i < NUMBER_OF_BLOCKS; i++) {
     addr.lpn = 0;
     addr.format.block = i;
     memio_trim(mio, addr.lpn, PAGE_PER_SEGMENT * PAGE_SIZE, NULL);
-    print_progress(i / 2, NUMBER_OF_BLOCKS / 2);
+    print_progress(i, NUMBER_OF_BLOCKS);
   }
   memio_close(mio);
 

@@ -36,7 +36,7 @@ THE SOFTWARE.
 #include <string.h>
 
 #ifndef BPS
-#define BPS 64        // Blocks Per Segment (may be software defined)
+#define BPS 128       // Blocks Per Segment (may be software defined)
 #define _PPB 128      // Pages Per Block
 #define PAGESIZE 8192 // Page Size (bytes)
 #endif
@@ -379,7 +379,7 @@ int memio_trim(memio_t *mio, uint32_t lba, uint64_t len,
       r->req_type = REQTYPE_GC_ERASE;
       r->logaddr.lpa[0] = cur_lba + i;
       //		r->logaddr.lpa[0] = cur_lba + ( (mio->trim_lbas /
-      //mio->nr_punits) * i );
+      // mio->nr_punits) * i );
       r->fmain.kp_ptr[0] = NULL; /* no data; it must be NULL */
 
       /* send I/O requets to the device */
