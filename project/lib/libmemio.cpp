@@ -36,7 +36,7 @@ THE SOFTWARE.
 #include <string.h>
 
 #ifndef BPS
-#define BPS 128       // Blocks Per Segment (may be software defined)
+#define BPS 64 // Blocks Per Segment (may be software defined)
 #define _PPB 128      // Pages Per Block
 #define PAGESIZE 8192 // Page Size (bytes)
 #endif

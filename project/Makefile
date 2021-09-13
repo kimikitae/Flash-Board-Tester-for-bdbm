@@ -3,9 +3,14 @@
 BD?=zcu102
 ifeq ($(BD),zcu102)
 CC = g++
+CXX = g++
 AR = ar
 #CC = aarch64-linux-gnu-g++
 #AR = aarch64-linux-gnu-ar
+
+GLIBDIR1 = /usr/include/glib-2.0/
+GLIBDIR2 = /usr/lib/aarch64-linux-gnu/glib-2.0/include/
+
 BOARD = zcu102
 CONNECTAL_DIR = connectal_zcu102
 else
@@ -37,6 +42,9 @@ CFLAGS += \
 	-D USE_NEW_RMW \
 	-D NOHOST \
 	-D LIBLSM \
+
+CXXFLAGS += \
+	$(CFLAGS) \
 	-std=c++11 \
 	#-D USE_ACP \ # only valid for zc706. mkTop8k_ACP.exe should be used.
 	#-D ZYNQ=1 \ # Already defined in ConnectalProjectConfig.h:20 
@@ -53,9 +61,11 @@ INCLUDES := \
 	-I$(LIBDIR)/$(CONNECTAL_DIR)/drivers/zynqportal \
 	-I$(LIBDIR)/$(CONNECTAL_DIR)/drivers/portalmem \
 	-I$(DM_NOHOST)/ \
+	-I$(GLIBDIR1) \
+	-I$(GLIBDIR2) \
 
 LIBS := \
-	-lm -lpthread -lrt -lssl -lcrypto
+	-lm -lpthread -lrt -lssl -lcrypto -lglib-2.0
 
 SRCS := \
 	$(LIBDIR)/$(BOARDDIR)/FlashRequest.c \
@@ -103,8 +113,8 @@ OBJS := \
 
 all: nohost.exe
 
-nohost.exe: $(SRCS) libmemio.a main.cpp
-	$(CC) $(INCLUDES) $(CFLAGS) -o $@ main.cpp libmemio.a $(LIBS) 
+nohost.exe: $(SRCS) libmemio.a *.c
+	$(CC) $(INCLUDES) $(CFLAGS) -o $@ *.c libmemio.a $(LIBS) 
 
 libmemio.a: $(OBJS)
 	$(AR) r $(@) $(OBJS)
@@ -113,7 +123,7 @@ libmemio.a: $(OBJS)
 	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@
 
 .cpp.o:
-	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@
+	$(CXX) $(INCLUDES) $(CXXFLAGS) -c $< -o $@
 
 clean:
 	@$(RM) *.o core *~ libmemio.a nohost.exe

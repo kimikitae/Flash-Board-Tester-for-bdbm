@@ -1,3 +1,6 @@
+#ifndef LIBMEMIO_H
+#define LIBMEMIO_H
+
 #include "bdbm_drv.h"
 #include "debug.h"   /* bdbm_msg */
 #include "devices.h" /* bdbm_dm_get_inf */
@@ -79,3 +82,5 @@ bool memio_is_clean(memio_t *mio);
 /*for DMA allocation*/
 int memio_alloc_dma(int type, char **buf);
 void memio_free_dma(int type, int dmaTag);
+
+#endif

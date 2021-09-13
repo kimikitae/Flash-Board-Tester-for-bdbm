@@ -73,12 +73,12 @@ struct timespec reqtime;
 #define NUM_TAGS 128
 
 // for Table
-#define NUM_BLOCKS 4096
+#define NUM_BLOCKS 32768
 #define NUM_SEGMENTS NUM_BLOCKS
 #define NUM_CHANNELS 8
 #define NUM_CHIPS 8
 #define NUM_LOGBLKS (NUM_CHANNELS*NUM_CHIPS)
-#define NUM_PAGES_PER_BLK 256
+#define NUM_PAGES_PER_BLK 128
 
 //koo
 #define DMASIZE (128*(1024/8))
@@ -509,6 +509,8 @@ uint32_t dm_nohost_probe (
 		bdbm_error ("bdbm_malloc failed");
 		goto fail;
 	}
+
+	display_device_params(params);
 
 	/* initialize the nohost device */
 	if (__dm_nohost_init_device (bdi, params) != 0) {

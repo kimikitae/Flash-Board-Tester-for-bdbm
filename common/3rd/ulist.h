@@ -21,6 +21,8 @@
 #ifndef _LINUX_LIST_H
 #define _LINUX_LIST_H
 
+#include <stdlib.h>
+
 /**
  * @name from other kernel headers
  */

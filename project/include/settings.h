@@ -1,30 +1,43 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-/**
- * NAND Specification
- * - # of Channels: 4
- * - # of Ways: 8
- * - # of Blocks: 32768 (PAGE_SIZE(# of Blocks in a Chip(x2 Ways)) * 4 (# of
- * Channel))
- * - # of Pages(per Block): 128
- * - Page Size: 8k
- * - Capacity per NAND: PAGE_SIZE * 128 * 32768 bytes (around 32GB)
- *
- * Total Flash Size
- * - # of NAND: 16
- * - Total Capacity: 512GB
- */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stdint.h>
 
 // DEVICE INFORMATION
-#define MAX_BUS (4)
-#define MAX_CHIPS_PER_BUS (2)
-#define MAX_BLOCKS_PER_CHIP (4096)
-#define MAX_PAGES_PER_BLOCK (128)
+#define MAX_BLOCKS (32768)
+#define PAGE_SIZE (8192) // bytes
+#define NR_PUNITS (64)   // # of blocks in a segment
+#define PAGE_PER_BLOCK (128)
+#define BLOCK_PER_SEGMENT (NR_PUNITS)
+#define PAGE_PER_SEGMENT (BLOCK_PER_SEGMENT * PAGE_PER_BLOCK)
 
-#define NUMBER_OF_BLOCKS (MAX_BUS * MAX_CHIPS_PER_BUS * MAX_BLOCKS_PER_CHIP)
+// dma information
+typedef struct dma_info {
+  uint32_t tag;
+  uint32_t dma_type;
+  uint32_t lpn;
+  char *data;
+} dma_info;
 
-#define PAGE_SIZE (8192)           // bytes
-#define PAGE_PER_SEGMENT (1 << 13) // Based on the address format
+// generic address format
+struct address {
+  union {
+    struct {
+      uint32_t bus : 3;
+      uint32_t chip : 3;
+      uint32_t page : 7;
+      uint32_t block : 19;
+    } format;
+    uint32_t lpn;
+  };
+};
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
