@@ -1,1 +1,1 @@
-(cd libmemio; make -j$(nproc))
+(cd project; make -j$(nproc))
