@@ -11,7 +11,8 @@ extern "C" {
 void flashinit(void);
 void flashread(memio_t *mio, uint32_t lpn);
 void flashwrite(memio_t *mio, char *buffer, uint32_t lpn);
-void flashfree(void);
+void flashupdate(const bool *badsegment);
+void flashfree(const bool *badsegment);
 
 #ifdef __cplusplus
 }

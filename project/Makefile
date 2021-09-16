@@ -65,7 +65,7 @@ INCLUDES := \
 	-I$(GLIBDIR2) \
 
 LIBS := \
-	-lm -lpthread -lrt -lssl -lcrypto -lglib-2.0
+	-lm -lpthread -lrt -lssl -lcrypto -lglib-2.0 -lpthread
 
 SRCS := \
 	$(LIBDIR)/$(BOARDDIR)/FlashRequest.c \
