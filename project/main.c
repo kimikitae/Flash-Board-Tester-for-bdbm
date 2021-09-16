@@ -29,19 +29,23 @@ THE SOFTWARE.
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #include <libmemio.h>
 
 #include "include/lower.h"
 #include "include/settings.h"
 
-#define WRITE_SIZE (50)
+#define WRITE_SIZE (MAX_BLOCKS)
+
+pthread_mutex_t mutex;
 
 static bool badsegment[MAX_BLOCKS];
 
 static void erase_end_req(uint64_t seg_num, uint8_t isbad) {
   /*managing block mapping when "isbad" set to 1 which mean the segments has
    * some bad blocks*/
+  pthread_mutex_unlock(&mutex);
   if (isbad) {
     printf("bad segment detected %lu\n", seg_num);
     badsegment[seg_num] = true;
@@ -64,25 +68,22 @@ int main(int argc, char **argv) {
 
   memset(badsegment, false, sizeof(badsegment));
 
+  pthread_mutex_init(&mutex, NULL);
+
   if ((mio = memio_open()) == NULL) {
     printf("could not open memio\n");
     return -1;
   }
   printf("successfully open\n");
-  // trim for badsegment checking
+  // trim and badsegment checking
   for (uint32_t block = 0; block < WRITE_SIZE; block++) {
+    pthread_mutex_lock(&mutex);
     addr.lpn = block * PAGE_PER_SEGMENT;
     memio_trim(mio, addr.lpn, PAGE_PER_SEGMENT * PAGE_SIZE, erase_end_req);
   }
   printf("trim the segment\n");
 
-  // remove whole
-  for (uint32_t block = 0; block < WRITE_SIZE; block++) {
-    addr.lpn = block * PAGE_PER_SEGMENT;
-    memio_trim(mio, addr.lpn, PAGE_PER_SEGMENT * PAGE_SIZE, NULL);
-  }
-  printf("remove the segment\n");
-
+  pthread_mutex_lock(&mutex);
   // R/W tester
   printf("I/O start\n");
   flashinit();
