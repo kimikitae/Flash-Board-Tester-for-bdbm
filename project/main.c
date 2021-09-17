@@ -38,16 +38,14 @@ THE SOFTWARE.
 
 #define WRITE_SIZE (MAX_BLOCKS)
 
-pthread_mutex_t mutex;
-
 static bool badsegment[MAX_BLOCKS];
 
 static void erase_end_req(uint64_t seg_num, uint8_t isbad) {
-  /*managing block mapping when "isbad" set to 1 which mean the segments has
+  /* managing block mapping when "isbad" set to 1 which mean the segments has
    * some bad blocks*/
-  pthread_mutex_unlock(&mutex);
   if (isbad) {
     printf("bad segment detected %lu\n", seg_num);
+    fflush(stdout);
     badsegment[seg_num] = true;
   }
 }
@@ -68,8 +66,6 @@ int main(int argc, char **argv) {
 
   memset(badsegment, false, sizeof(badsegment));
 
-  pthread_mutex_init(&mutex, NULL);
-
   if ((mio = memio_open()) == NULL) {
     printf("could not open memio\n");
     return -1;
@@ -77,15 +73,16 @@ int main(int argc, char **argv) {
   printf("successfully open\n");
   // trim and badsegment checking
   for (uint32_t block = 0; block < WRITE_SIZE; block++) {
-    pthread_mutex_lock(&mutex);
     addr.lpn = block * PAGE_PER_SEGMENT;
     memio_trim(mio, addr.lpn, PAGE_PER_SEGMENT * PAGE_SIZE, erase_end_req);
   }
   printf("trim the segment\n");
 
-  pthread_mutex_lock(&mutex);
+  sleep(1); // warming up the device
+
   // R/W tester
   printf("I/O start\n");
+  fflush(stdout);
   flashinit();
   for (uint32_t block = 0; block < WRITE_SIZE; block++) {
     printf("block %u\n", block);
@@ -99,6 +96,7 @@ int main(int argc, char **argv) {
       flashread(mio, addr.lpn);
     }
     flashupdate(badsegment);
+    fflush(stdout);
   }
   printf("finish I/O\n");
 
