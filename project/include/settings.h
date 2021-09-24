@@ -8,7 +8,7 @@ extern "C" {
 #include <stdint.h>
 
 // DEVICE INFORMATION
-#define MAX_BLOCKS (32768)
+#define MAX_BLOCKS (4096)
 #define PAGE_SIZE (8192) // bytes
 #define NR_PUNITS (64)   // # of blocks in a segment
 #define PAGE_PER_BLOCK (128)
