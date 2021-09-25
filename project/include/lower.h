@@ -8,7 +8,7 @@ extern "C" {
 #include <libmemio.h>
 
 // read/write test function
-void flashinit(void);
+void flashinit(const int startblock);
 void flashread(memio_t *mio, uint32_t lpn);
 void flashwrite(memio_t *mio, char *buffer, uint32_t lpn);
 void flashupdate(const bool *badsegment);

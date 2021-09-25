@@ -36,8 +36,8 @@ THE SOFTWARE.
 #include "include/lower.h"
 #include "include/settings.h"
 
-#define WRITE_START (0)
-#define WRITE_END (WRITE_START + 1)
+#define WRITE_START (4097)
+#define WRITE_END (WRITE_START + 2)
 
 static bool badsegment[NR_BLOCKS_PER_CHIP];
 
@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
   // R/W tester
   printf("I/O start\n");
   fflush(stdout);
-  flashinit();
+  flashinit(WRITE_START);
   for (uint32_t block = WRITE_START; block < WRITE_END; block++) {
     printf("block %u\n", block);
     for (uint32_t i = 0; i < PAGE_PER_SEGMENT; i++) {

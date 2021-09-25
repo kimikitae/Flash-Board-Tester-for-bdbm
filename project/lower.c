@@ -44,8 +44,9 @@ static void end_req(async_bdbm_req *req) {
   free(req);
 }
 
-void flashinit(void) {
+void flashinit(const int startblock) {
   pthread_mutex_init(&mutex, NULL);
+  next_block = last_block = startblock;
   assert(NULL != (fp = fopen("crashblock.log", "w")));
   for (int i = 0; i < NR_BLOCKS_PER_CHIP; i++) {
     assert(0 != MD5_Init(&wctx[i]));
