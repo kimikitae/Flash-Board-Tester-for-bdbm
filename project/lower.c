@@ -12,8 +12,8 @@
 #include "include/md5.h"
 #include "include/settings.h"
 
-static MD5_CTX wctx[MAX_BLOCKS];
-static MD5_CTX rctx[MAX_BLOCKS];
+static MD5_CTX wctx[NR_BLOCKS_PER_CHIP];
+static MD5_CTX rctx[NR_BLOCKS_PER_CHIP];
 static uint32_t last_block = 0;
 static uint32_t next_block = 0;
 static FILE *fp;
@@ -47,7 +47,7 @@ static void end_req(async_bdbm_req *req) {
 void flashinit(void) {
   pthread_mutex_init(&mutex, NULL);
   assert(NULL != (fp = fopen("crashblock.log", "w")));
-  for (int i = 0; i < MAX_BLOCKS; i++) {
+  for (int i = 0; i < NR_BLOCKS_PER_CHIP; i++) {
     assert(0 != MD5_Init(&wctx[i]));
     assert(0 != MD5_Init(&rctx[i]));
   }

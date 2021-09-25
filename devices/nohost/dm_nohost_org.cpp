@@ -51,12 +51,12 @@ THE SOFTWARE.
 #define NUM_TAGS 128
 
 // for Table
-#define NUM_BLOCKS 4096
+#define NUM_BLOCKS 8192
 #define NUM_SEGMENTS NUM_BLOCKS
 #define NUM_CHANNELS 8
 #define NUM_CHIPS 8
 #define NUM_LOGBLKS (NUM_CHANNELS*NUM_CHIPS)
-#define NUM_PAGES_PER_BLK 256
+#define NUM_PAGES_PER_BLK 128
 
 typedef enum {
 	UNINIT,

@@ -36,9 +36,10 @@ THE SOFTWARE.
 #include "include/lower.h"
 #include "include/settings.h"
 
-#define WRITE_SIZE (MAX_BLOCKS)
+#define WRITE_START (0)
+#define WRITE_END (WRITE_START + 1)
 
-static bool badsegment[MAX_BLOCKS];
+static bool badsegment[NR_BLOCKS_PER_CHIP];
 
 static void erase_end_req(uint64_t seg_num, uint8_t isbad) {
   /* managing block mapping when "isbad" set to 1 which mean the segments has
@@ -72,7 +73,7 @@ int main(int argc, char **argv) {
   }
   printf("successfully open\n");
   // trim and badsegment checking
-  for (uint32_t block = 0; block < WRITE_SIZE; block++) {
+  for (uint32_t block = WRITE_START; block < WRITE_END; block++) {
     addr.lpn = block * PAGE_PER_SEGMENT;
     memio_trim(mio, addr.lpn, PAGE_PER_SEGMENT * PAGE_SIZE, erase_end_req);
   }
@@ -84,7 +85,7 @@ int main(int argc, char **argv) {
   printf("I/O start\n");
   fflush(stdout);
   flashinit();
-  for (uint32_t block = 0; block < WRITE_SIZE; block++) {
+  for (uint32_t block = WRITE_START; block < WRITE_END; block++) {
     printf("block %u\n", block);
     for (uint32_t i = 0; i < PAGE_PER_SEGMENT; i++) {
       addr.lpn = block * PAGE_PER_SEGMENT + i;
@@ -102,7 +103,7 @@ int main(int argc, char **argv) {
 
   fp = fopen("badblock.log", "w");
   addr.lpn = 0;
-  for (uint32_t block = 0; block < WRITE_SIZE; block++) {
+  for (uint32_t block = WRITE_START; block < WRITE_END; block++) {
     if (!badsegment[block]) {
       continue;
     }

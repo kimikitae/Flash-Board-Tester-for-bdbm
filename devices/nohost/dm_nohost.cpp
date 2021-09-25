@@ -73,7 +73,7 @@ struct timespec reqtime;
 #define NUM_TAGS 128
 
 // for Table
-#define NUM_BLOCKS 32768
+#define NUM_BLOCKS 8192
 #define NUM_SEGMENTS NUM_BLOCKS
 #define NUM_CHANNELS 8
 #define NUM_CHIPS 8
