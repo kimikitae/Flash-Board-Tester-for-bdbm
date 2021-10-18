@@ -110,6 +110,9 @@ endif
 OBJS := \
 	$(SRCS:.c=.o) $(SRCS:.cpp=.o)
 
+ifeq ($(PREFIX),)
+PREFIX := /usr/local
+endif
 
 all: nohost.exe
 
@@ -124,6 +127,12 @@ libmemio.a: $(OBJS)
 
 .cpp.o:
 	$(CXX) $(INCLUDES) $(CXXFLAGS) -c $< -o $@
+
+install:
+	install -d $(DESTDIR)$(PREFIX)/lib/
+	install -m 644 libmemio.a $(DESTDIR)$(PREFIX)/lib
+	install -d $(DESTDIR)$(PREFIX)/include/
+	install -m 644 $(ROOTDIR)headers/*.h $(DESTDIR)$(PREFIX)/include/
 
 clean:
 	@$(RM) *.o core *~ libmemio.a nohost.exe
