@@ -28,6 +28,16 @@ in the `project` directory.
 
 If you want to test the board, you execute that file.
 
+## Install library
+
+You can install the library by using `./build.sh install`.
+After executing this command, you can use the library without `-L` flags.
+In other words, you can use a library like below.
+
+```bash
+g++ -D USER_MODE *.c -lmemio -lpthread -lcrypto
+```
+
 ## How to use
 
 You can test the device by tuning the below factors.
