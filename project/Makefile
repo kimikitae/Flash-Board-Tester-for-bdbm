@@ -131,8 +131,8 @@ libmemio.a: $(OBJS)
 install:
 	install -d $(DESTDIR)$(PREFIX)/lib/
 	install -m 644 libmemio.a $(DESTDIR)$(PREFIX)/lib
-	install -d $(DESTDIR)$(PREFIX)/include/
-	install -m 644 $(ROOTDIR)headers/*.h $(DESTDIR)$(PREFIX)/include/
+	install -d $(DESTDIR)$(PREFIX)/include/memio
+	install -m 644 $(ROOTDIR)headers/*.h $(DESTDIR)$(PREFIX)/include/memio
 
 clean:
 	@$(RM) *.o core *~ libmemio.a nohost.exe

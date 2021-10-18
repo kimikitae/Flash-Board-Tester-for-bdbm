@@ -35,7 +35,7 @@ After executing this command, you can use the library without `-L` flags.
 In other words, you can use a library like below.
 
 ```bash
-g++ -D USER_MODE *.c -lmemio -lpthread -lcrypto
+g++ -D USER_MODE *.c -lmemio -lpthread -lcrypto -I/usr/local/include/memio
 ```
 
 ## How to use
