@@ -8,7 +8,7 @@ extern "C" {
 #include <stdint.h>
 
 // DEVICE INFORMATION
-#define NR_BLOCKS_PER_CHIP (8192)
+#define NR_BLOCKS_PER_CHIP (4096)
 #define PAGE_SIZE (8192) // bytes
 #define NR_PUNITS (64)   // # of blocks in a segment
 #define PAGE_PER_BLOCK (128)

@@ -258,6 +258,7 @@ class FlashIndication: public FlashIndicationWrapper {
 				r->isbad=1;
 			}
 			else{
+				r->segnum=r->logaddr.lpa[0]/(1<<13);
 				r->isbad=0;
 			}
 
