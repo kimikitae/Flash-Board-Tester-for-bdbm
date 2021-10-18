@@ -58,7 +58,7 @@ typedef struct {
 #include <pthread.h>
 #include "uatomic64.h"
 
-#define SIGKILL	0xCCCC
+#define SIG_USER_KILL	0xCCCC
 
 typedef struct {
 	/* thread management */

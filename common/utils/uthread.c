@@ -40,7 +40,7 @@ int bdbm_thread_fn (void *data)
 	k->wait = &wait;
 
 	bdbm_daemonize ("bdbm_thread_fn");
-	allow_signal (SIGKILL); 
+	allow_signal (SIG_USER_KILL); 
 
 	bdbm_mutex_lock (&k->thread_done);
 	
@@ -107,7 +107,7 @@ int bdbm_thread_schedule (bdbm_thread_t* k)
 
 	if (signal_pending (current)) {
 		/* get a kill signal */
-		return SIGKILL;
+		return SIG_USER_KILL;
 	}
 
 	return 0;
@@ -132,7 +132,7 @@ int bdbm_thread_schedule_sleep (bdbm_thread_t* k)
 
 	if (signal_pending (current)) {
 		/* get a kill signal */
-		return SIGKILL;
+		return SIG_USER_KILL;
 	}
 
 	return 0;
@@ -156,7 +156,7 @@ void bdbm_thread_stop (bdbm_thread_t* k)
 	}
 
 	/* send a KILL signal to the thread */
-	send_sig (SIGKILL, k->thread, 0);
+	send_sig (SIG_USER_KILL, k->thread, 0);
 	bdbm_mutex_lock (&k->thread_done);
 
 	/* free bdbm_thread_t */
