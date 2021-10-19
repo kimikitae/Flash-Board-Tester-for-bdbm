@@ -21,7 +21,7 @@ BOARD = zc706_ubuntu
 CONNECTAL_DIR = connectal_zc706
 endif
 
-ROOTDIR = ../
+ROOTDIR = $(shell realpath ..)
 INCLUDE = $(ROOTDIR)/include
 COMMON = $(ROOTDIR)/common
 DM_COMMON = $(ROOTDIR)/devices/common
@@ -132,7 +132,7 @@ install:
 	install -d $(DESTDIR)$(PREFIX)/lib/
 	install -m 644 libmemio.a $(DESTDIR)$(PREFIX)/lib
 	install -d $(DESTDIR)$(PREFIX)/include/memio
-	install -m 644 $(ROOTDIR)headers/*.h $(DESTDIR)$(PREFIX)/include/memio
+	install -m 644 $(ROOTDIR)/headers/*.h $(DESTDIR)$(PREFIX)/include/memio
 
 clean:
 	@$(RM) *.o core *~ libmemio.a nohost.exe

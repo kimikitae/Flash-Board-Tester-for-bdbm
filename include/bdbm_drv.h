@@ -43,7 +43,7 @@ THE SOFTWARE.
 
 #define module_param(a,b,c)
 #define MODULE_PARM_DESC(a,b)
-#define KERNEL_PAGE_SIZE	4096	/* a default page size */
+#define KERNEL_PAGE_SIZE	8192/* a default page size */
 
 /*** ELSE???? ***/
 #else
