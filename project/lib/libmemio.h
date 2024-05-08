@@ -7,6 +7,16 @@
 #include "umemory.h" /* bdbm_malloc */
 #include "uthread.h" /* bdbm_thread_nanosleep */
 #include <queue>
+
+//#include "dm_nohost.h"
+//extern test test_strct;
+
+//typedef struct _test{
+//	int test_val;
+//} test;
+
+//test test_strct = { .test_val = 1234 };
+
 enum _dma_type { DMA_WRITE_BUF = 1, DMA_READ_BUF };
 typedef struct memio_q_req {
   void *req;

@@ -21,6 +21,33 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
+#ifndef _BLUEDBM_TEST_STR
+#define _BLUEDBM_TEST_STR
+
+#include <time.h>
+
+typedef struct _Request{
+    uint32_t bus;
+    uint32_t chip;
+	uint32_t page;
+    uint32_t block;
+    char operation;		// r:0 w:1 e:2
+	struct timespec timestamp;
+    struct _Request *prev_request;
+	struct _Request *next_request;
+} Request;
+
+typedef struct _Req_list {
+    Request *first;
+    Request *last;
+    uint32_t req_num;
+	pthread_mutex_t rl_mutex;
+
+	char warm_up_flag;
+	char trace_done;
+} Req_list;
+
+#endif
 
 #ifndef _BLUEDBM_DEV_RAMDRV_H
 #define _BLUEDBM_DEV_RAMDRV_H
@@ -29,6 +56,7 @@ THE SOFTWARE.
 #include "params.h"
 #include <queue> //koo
 #include <pthread.h> //koo
+
 
 extern bdbm_dm_inf_t _dm_nohost_inf;
 

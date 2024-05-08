@@ -42,6 +42,8 @@ THE SOFTWARE.
 #endif
 //#include "../../../../bench/bench.h"
 
+//extern test test_strct;
+
 extern unsigned int *dstBuffer;
 extern unsigned int *srcBuffer;
 extern pthread_mutex_t endR;
@@ -66,7 +68,7 @@ int req_cnt = 0;
 uint64_t dm_intr_cnt;
 static void __dm_intr_handler(bdbm_drv_info_t *bdi, bdbm_llm_req_t *r) {
   async_bdbm_req *my_algo_req = (async_bdbm_req *)r->req;
-  if (r->req_type != REQTYPE_GC_ERASE) {
+  if (r->req_type != REQTYPE_GC_ERASE && r->req_type != REQTYPE_TRIM) {
     dm_intr_cnt++;
     my_algo_req->end_req(my_algo_req);
   } else {
@@ -243,7 +245,8 @@ static int __memio_do_io(memio_t *mio, int dir, uint32_t lba, uint64_t len,
     case 3:
       r->req_type = REQTYPE_META_WRITE;
     }
-    // r->req_type = (dir == 0) ? REQTYPE_READ : REQTYPE_WRITE;
+    
+	// r->req_type = (dir == 0) ? REQTYPE_READ : REQTYPE_WRITE;
     r->logaddr.lpa[0] = cur_lba;
     r->fmain.kp_ptr[0] = cur_buf;
     r->async = async;
@@ -376,7 +379,18 @@ int memio_trim(memio_t *mio, uint32_t lba, uint64_t len,
 
       /* setup llm_req */
       // bdbm_msg ("  -- blk #: %d", i);
-      r->req_type = REQTYPE_GC_ERASE;
+      switch(mio->rr->req_type){
+			case REQTYPE_TRIM:
+				r->req_type = REQTYPE_TRIM;
+				break;
+			case REQTYPE_GC_ERASE:
+				r->req_type = REQTYPE_GC_ERASE;
+				break;
+			default:
+				printf("erase req type error\n");
+				break;
+	  }
+	  
       r->logaddr.lpa[0] = cur_lba + i;
       //		r->logaddr.lpa[0] = cur_lba + ( (mio->trim_lbas /
       // mio->nr_punits) * i );

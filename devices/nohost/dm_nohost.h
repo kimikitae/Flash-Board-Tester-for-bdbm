@@ -29,6 +29,28 @@ THE SOFTWARE.
 #include "params.h"
 #include <queue> //koo
 #include <pthread.h> //koo
+#include <time.h>
+
+typedef struct _Request{               
+	uint32_t bus;
+	uint32_t chip;
+	uint32_t page;
+	uint32_t block;
+	char operation;
+	struct timespec timestamp;
+	struct _Request *prev_request;
+	struct _Request *next_request;
+} Request;
+
+typedef struct _Req_list {
+	Request *first;
+	Request *last;
+	uint32_t req_num;
+	pthread_mutex_t rl_mutex;
+
+	char warm_up_flag;
+	char trace_done;
+} Req_list;
 
 extern bdbm_dm_inf_t _dm_nohost_inf;
 

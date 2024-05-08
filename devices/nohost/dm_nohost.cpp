@@ -27,6 +27,9 @@
 
 #elif defined (USER_MODE)
 #include <stdint.h>
+#include <time.h>
+#include <error.h>
+#include <fcntl.h>
 
 #else
 #error Invalid Platform (KERNEL_MODE or USER_MODE)
@@ -60,6 +63,7 @@ pthread_cond_t readDmaQ_cond = PTHREAD_COND_INITIALIZER;
 
 pthread_mutex_t bus_lock=PTHREAD_MUTEX_INITIALIZER;
 
+Req_list *req_list;
 
 extern pthread_mutex_t endR;
 struct timespec reqtime;
@@ -224,7 +228,7 @@ class FlashIndication: public FlashIndicationWrapper {
 			bdbm_llm_req_t* r = _priv->llm_reqs[tag];
 			_priv->llm_reqs[tag] = NULL;
 			//			bdbm_sema_unlock (&global_lock);
-			if( r == NULL ){ printf("readDone: Ack Duplicate with tag=%d, status=%d\n", tag, status); fflush(stdout); 
+			if( r == NULL ){ //printf("readDone: Ack Duplicate with tag=%d, status=%d\n", tag, status); fflush(stdout); 
 				device->debugDumpReq(0);
 				return; }
 			//else {  printf("readDone: Ack  with tag=%d, status=%d\n", tag, status); fflush(stdout); }
@@ -240,7 +244,9 @@ class FlashIndication: public FlashIndicationWrapper {
 			bdbm_llm_req_t* r = _priv->llm_reqs[tag];
 			_priv->llm_reqs[tag] = NULL;
 			//			bdbm_sema_unlock (&global_lock);
-			if( r == NULL ) { printf("writeDone: Ack Duplicate with tag=%d, status=%d\n", tag, status); fflush(stdout); return; }
+			if( r == NULL ) { //printf("writeDone: Ack Duplicate with tag=%d, status=%d\n", tag, status); fflush(stdout); 
+				return; 
+			}
 
 			//sw_poller_enqueue((void*)r);
 			dm_nohost_end_req (_bdi_dm, r);
@@ -267,7 +273,7 @@ class FlashIndication: public FlashIndicationWrapper {
 		}
 
 		virtual void debugDumpResp (unsigned int debug0, unsigned int debug1,  unsigned int debug2, unsigned int debug3, unsigned int debug4, unsigned int debug5) {
-			fprintf(stderr, "LOG: DEBUG DUMP: gearSend = %u, gearRec = %u, aurSend = %u, aurRec = %u, readSend=%u, writeSend=%u\n", debug0, debug1, debug2, debug3, debug4, debug5);
+			//fprintf(stderr, "LOG: DEBUG DUMP: gearSend = %u, gearRec = %u, aurSend = %u, aurRec = %u, readSend=%u, writeSend=%u\n", debug0, debug1, debug2, debug3, debug4, debug5);
 		}
 
 };
@@ -574,15 +580,23 @@ fail:
 
 uint32_t dm_nohost_open (bdbm_drv_info_t* bdi)
 {
+	req_list = (Req_list*)malloc(sizeof(Req_list));
+	req_list->req_num = 0;
+	req_list->trace_done = 0;
+	req_list->warm_up_flag = 0;
+	pthread_mutex_init(&req_list->rl_mutex, NULL);
+
 	dm_nohost_private_t * p = (dm_nohost_private_t*)BDBM_DM_PRIV (bdi);
 
 	bdbm_msg ("[dm_nohost_open] open done!");
-
+	
 	return 0;
 }
 
 void dm_nohost_close (bdbm_drv_info_t* bdi)
 {
+	free(req_list);
+	
 	dm_nohost_private_t* p = (dm_nohost_private_t*)BDBM_DM_PRIV (bdi);
 
 	/* before closing, dump the table to table.dump.0 */
@@ -619,12 +633,32 @@ void dm_nohost_close (bdbm_drv_info_t* bdi)
 	//sw_poller_destroy();
 	//
 }
+
+void push_request_line(Request *request){
+	pthread_mutex_lock(&req_list->rl_mutex);
+	if(req_list->req_num == 0) {
+		req_list->first = req_list->last = request;
+		req_list->req_num++;
+	}
+	else {
+		req_list->last->next_request = request;
+		request->prev_request = req_list->last;
+		req_list->last = request;
+		req_list->req_num++;
+	}
+	pthread_mutex_unlock(&req_list->rl_mutex);
+	
+	return;
+}
+
 int readlockbywrite;
 uint32_t dm_nohost_make_req (
 		bdbm_drv_info_t* bdi, 
 		bdbm_llm_req_t* r) 
 {
 	uint32_t punit_id, ret, i;
+	//int fd_trace;
+
 	dm_nohost_private_t* priv = (dm_nohost_private_t*)BDBM_DM_PRIV (bdi);
 	//	bdbm_sema_lock (&global_lock);
 	if (priv->llm_reqs[r->tag] == r) {
@@ -665,6 +699,10 @@ uint32_t dm_nohost_make_req (
 	bus_rqtype[bus]=r->req_type;
 	pthread_mutex_unlock(&bus_lock);
 
+	struct timespec tv;
+	if(clock_gettime(CLOCK_REALTIME, &tv))
+		perror("error clock_gettime\n");
+
 	switch (r->req_type) {
 		case REQTYPE_WRITE:
 		case REQTYPE_RMW_WRITE:
@@ -675,9 +713,38 @@ uint32_t dm_nohost_make_req (
 			chip = (r->logaddr.lpa[0] >> 3) & 0x7;
 			page = (r->logaddr.lpa[0] >> 6) & 0x7F;
 			block = (r->logaddr.lpa[0] >> 13);
+			
+			
+			if(req_list->warm_up_flag){
+				Request *request_line = (Request*)malloc(sizeof(Request));
+
+				request_line->bus = bus;
+				request_line->chip = chip;
+				request_line->page = page;
+				request_line->block = block;
+				request_line->operation = 1;
+				request_line->timestamp = tv;
+				
+				push_request_line(request_line);
+			}
+
+/*
+			// for log
+			fd_trace = open("trace_HILS.txt", O_WRONLY | O_APPEND | O_SYNC);
+			if(fd_trace >= 0){
+				// when warm up done
+				dprintf(fd_trace, "%ld.%ld write bus : %d chip : %d block : %d page : %d\n", tv.tv_sec, tv.tv_nsec, bus, chip, block, page);
+			}
+
+*/
 			device->writePage(bus, chip, block, page, r->tag, r->dmaTag * FPAGE_SIZE);
 			//pthread_mutex_unlock(&endR);
-			//
+/*
+			// for log
+			if(fd_trace >= 0){
+				close(fd_trace);
+			}
+*/
 			break;
 
 		case REQTYPE_META_WRITE:
@@ -703,10 +770,41 @@ uint32_t dm_nohost_make_req (
 			bus  = r->logaddr.lpa[0] & 0x7;
 			chip = (r->logaddr.lpa[0] >> 3) & 0x7;
 			page = (r->logaddr.lpa[0] >> 6) & 0x7F;
-			block = (r->logaddr.lpa[0] >> 13);
+			block = (r->logaddr.lpa[0] >> 13);	
+
+
+			if(req_list->warm_up_flag){
+				Request *request_line = (Request*)malloc(sizeof(Request));
+
+				request_line->bus = bus;
+				request_line->chip = chip;
+				request_line->page = page;
+				request_line->block = block;
+				request_line->operation = 0;
+				request_line->timestamp = tv;
+				
+				push_request_line(request_line);
+			}
+
+/*
+			// for log
+			fd_trace = open("trace_HILS.txt", O_WRONLY | O_APPEND | O_SYNC);
+			if(fd_trace >= 0){
+				// when warm up done
+				dprintf(fd_trace, "%ld.%ld read bus : %d chip : %d block : %d page : %d\n", tv.tv_sec, tv.tv_nsec, bus, chip, block, page);
+			}
+
+			//device->readPage(bus, chip, block, page, r->tag, r->dmaTag * FPAGE_SIZE);
+			//pthread_mutex_unlock(&endR);
+			
+			// for log
+			if(fd_trace >= 0){
+				close(fd_trace);
+			}
+*/			
+			
 			device->readPage(bus, chip, block, page, r->tag, r->dmaTag * FPAGE_SIZE);
 			break;
-
 		case REQTYPE_META_READ:
 			//printf ("LOG: device->readPage, tag=%d lpa=%d\n", r->tag, r->logaddr.lpa[0]); fflush(stdout);
 			//device->readPage (r->tag, r->logaddr.lpa[0], (DMASIZE - NUM_TAGS + r->tag) * FPAGE_SIZE);
@@ -725,6 +823,43 @@ uint32_t dm_nohost_make_req (
 			chip = (r->logaddr.lpa[0] >> 3) & 0x7;
 			//page = (r->logaddr.lpa[0] >> 6) & 0x7F;
 			block = (r->logaddr.lpa[0] >> 13);
+		
+			if(req_list->warm_up_flag){
+				Request *request_line = (Request*)malloc(sizeof(Request));
+
+				request_line->bus = bus;
+				request_line->chip = chip;
+				request_line->block = block;
+				request_line->operation = 2;
+				request_line->timestamp = tv;
+				
+				push_request_line(request_line);
+			}
+
+/*
+			// for log
+			fd_trace = open("trace_HILS.txt", O_WRONLY | O_APPEND | O_SYNC);
+			if(fd_trace >= 0){
+				// when warm up done
+				dprintf(fd_trace, "%ld.%ld erase bus : %d chip : %d block : %d\n", tv.tv_sec, tv.tv_nsec, bus, chip, block);
+			}
+*/
+
+			device->eraseBlock(bus, chip, block, r->tag);
+/*
+			//: for log
+			if(fd_trace >= 0){
+				close(fd_trace);
+			}
+*/
+			break;
+
+		case REQTYPE_TRIM:
+			bus  = r->logaddr.lpa[0] & 0x7;
+			chip = (r->logaddr.lpa[0] >> 3) & 0x7;
+			//page = (r->logaddr.lpa[0] >> 6) & 0x7F;
+			block = (r->logaddr.lpa[0] >> 13);
+			
 			device->eraseBlock(bus, chip, block, r->tag);
 			break;
 		default:
